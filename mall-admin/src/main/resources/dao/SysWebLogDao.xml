@@ -45,4 +45,33 @@
     where username = #{username,jdbcType=VARCHAR}
     order by create_time desc
   </select>
+  
+  <select id="selectByCondition" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from sys_web_log
+    <where>
+      <if test="username != null and username != ''">
+        and username like concat('%', #{username}, '%')
+      </if>
+      <if test="method != null and method != ''">
+        and method = #{method,jdbcType=VARCHAR}
+      </if>
+    </where>
+    order by create_time desc
+    limit #{offset}, #{limit}
+  </select>
+  
+  <select id="countByCondition" resultType="java.lang.Long">
+    select count(*)
+    from sys_web_log
+    <where>
+      <if test="username != null and username != ''">
+        and username like concat('%', #{username}, '%')
+      </if>
+      <if test="method != null and method != ''">
+        and method = #{method,jdbcType=VARCHAR}
+      </if>
+    </where>
+  </select>
 </mapper>

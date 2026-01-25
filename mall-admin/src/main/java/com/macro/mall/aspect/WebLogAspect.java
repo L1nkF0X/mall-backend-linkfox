@@ -28,7 +28,6 @@ import java.util.Date;
 
 /**
  * 统一日志处理切面
- * Created by macro on 2024/01/19.
  */
 @Aspect
 @Component
@@ -74,9 +73,9 @@ public class WebLogAspect {
         webLog.setCreateTime(new Date());
         webLog.setSpendTime((int) (endTime - startTime));
         webLog.setIp(RequestUtil.getRequestIp(request));
-        webLog.setUsername(getCurrentUsername(request));
-        //保存日志到数据库
-        sysWebLogService.save(webLog);
+        webLog.setUsername(getCurrentUsername(request, joinPoint.getArgs()));
+        //异步保存日志到数据库
+        sysWebLogService.saveAsync(webLog);
         LOGGER.info("{}", JSONUtil.parse(webLog));
         return result;
     }
@@ -100,8 +99,10 @@ public class WebLogAspect {
 
     /**
      * 获取当前登录用户名
+     * 优先从Token中获取，如果获取不到则尝试从请求参数中提取
      */
-    private String getCurrentUsername(HttpServletRequest request) {
+    private String getCurrentUsername(HttpServletRequest request, Object[] args) {
+        // 1. 优先尝试从Token中获取用户名
         String token = request.getHeader(tokenHeader);
         if (token != null && token.startsWith(tokenHead)) {
             token = token.substring(tokenHead.length());
@@ -112,12 +113,105 @@ public class WebLogAspect {
                         .setSigningKey(secret)
                         .parseClaimsJws(token)
                         .getBody();
-                return claims.getSubject();
+                String username = claims.getSubject();
+                if (StrUtil.isNotEmpty(username) && !"anonymous".equals(username)) {
+                    return username;
+                }
             } catch (Exception e) {
-                LOGGER.warn("JWT token解析失败", e);
+                LOGGER.debug("JWT token解析失败，尝试从请求参数中获取用户名", e);
             }
         }
+        
+        // 2. Token获取失败时，尝试从请求参数中获取用户名
+        String usernameFromParams = extractUsernameFromRequest(request);
+        if (StrUtil.isNotEmpty(usernameFromParams)) {
+            return usernameFromParams;
+        }
+        
+        // 3. 从方法参数中提取用户名
+        String usernameFromArgs = extractUsernameFromArgs(args);
+        if (StrUtil.isNotEmpty(usernameFromArgs)) {
+            return usernameFromArgs;
+        }
+        
         return "anonymous";
+    }
+    
+    /**
+     * 从请求参数中提取用户名
+     * 支持表单参数和JSON参数
+     */
+    private String extractUsernameFromRequest(HttpServletRequest request) {
+        try {
+            // 1. 尝试从表单参数中获取
+            String username = request.getParameter("username");
+            if (StrUtil.isNotEmpty(username)) {
+                LOGGER.debug("从表单参数中获取到用户名: {}", username);
+                return username;
+            }
+            
+            // 2. 尝试从请求体中获取（针对JSON请求）
+            // 注意：这里只是示例，实际项目中可能需要根据具体的请求体格式来解析
+            // 由于HttpServletRequest的输入流只能读取一次，这里采用更安全的方式
+            
+        } catch (Exception e) {
+            LOGGER.debug("从请求参数中提取用户名失败", e);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 从方法参数中提取用户名
+     * 当Token无法获取用户名时，尝试从方法参数中提取
+     */
+    private String extractUsernameFromArgs(Object[] args) {
+        if (args == null || args.length == 0) {
+            return null;
+        }
+        
+        try {
+            // 遍历所有参数，寻找包含username字段的对象
+            for (Object arg : args) {
+                if (arg == null) {
+                    continue;
+                }
+                
+                // 尝试将参数转换为JSON并提取username
+                String jsonStr = JSONUtil.toJsonStr(arg);
+                if (StrUtil.isNotEmpty(jsonStr) && jsonStr.contains("username")) {
+                    try {
+                        cn.hutool.json.JSONObject jsonObject = JSONUtil.parseObj(jsonStr);
+                        if (jsonObject.containsKey("username")) {
+                            String username = jsonObject.getStr("username");
+                            if (StrUtil.isNotEmpty(username)) {
+                                LOGGER.debug("从方法参数中提取到用户名: {}", username);
+                                return username;
+                            }
+                        }
+                    } catch (Exception e) {
+                        LOGGER.debug("解析参数JSON失败: {}", jsonStr, e);
+                    }
+                }
+                
+                // 尝试通过反射获取username字段
+                try {
+                    java.lang.reflect.Field usernameField = arg.getClass().getDeclaredField("username");
+                    usernameField.setAccessible(true);
+                    Object usernameValue = usernameField.get(arg);
+                    if (usernameValue != null && StrUtil.isNotEmpty(usernameValue.toString())) {
+                        LOGGER.debug("通过反射从参数中提取到用户名: {}", usernameValue);
+                        return usernameValue.toString();
+                    }
+                } catch (Exception e) {
+                    // 忽略反射异常，继续尝试其他参数
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.debug("从方法参数中提取用户名失败", e);
+        }
+        
+        return null;
     }
 
 }

@@ -32,4 +32,18 @@ public interface SysWebLogDao {
      * 根据用户名查询操作日志
      */
     List<SysWebLog> selectByUsername(@Param("username") String username);
+    
+    /**
+     * 多条件分页查询操作日志
+     */
+    List<SysWebLog> selectByCondition(@Param("username") String username, 
+                                      @Param("method") String method,
+                                      @Param("offset") Integer offset, 
+                                      @Param("limit") Integer limit);
+    
+    /**
+     * 多条件查询操作日志总数
+     */
+    Long countByCondition(@Param("username") String username, 
+                          @Param("method") String method);
 }

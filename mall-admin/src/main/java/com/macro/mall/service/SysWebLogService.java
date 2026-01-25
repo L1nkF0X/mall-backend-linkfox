@@ -3,10 +3,11 @@ package com.macro.mall.service;
 import com.macro.mall.model.SysWebLog;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 后台操作日志Service
- * Created by macro on 2024/01/19.
  */
 public interface SysWebLogService {
     
@@ -14,6 +15,11 @@ public interface SysWebLogService {
      * 保存操作日志
      */
     int save(SysWebLog webLog);
+    
+    /**
+     * 异步保存操作日志
+     */
+    CompletableFuture<Void> saveAsync(SysWebLog webLog);
     
     /**
      * 根据ID查询操作日志
@@ -29,4 +35,9 @@ public interface SysWebLogService {
      * 根据用户名查询操作日志
      */
     List<SysWebLog> getByUsername(String username);
+    
+    /**
+     * 多条件分页查询操作日志
+     */
+    Map<String, Object> listByCondition(String username, String method, Integer pageNum, Integer pageSize);
 }
