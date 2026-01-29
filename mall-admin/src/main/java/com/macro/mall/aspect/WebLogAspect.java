@@ -59,6 +59,7 @@ public class WebLogAspect {
         //记录请求信息
         SysWebLog webLog = new SysWebLog();
         Object result = joinPoint.proceed();
+        long endTime = System.currentTimeMillis();
         Signature signature = joinPoint.getSignature();
         MethodSignature methodSignature = (MethodSignature) signature;
         Method method = methodSignature.getMethod();
@@ -66,7 +67,6 @@ public class WebLogAspect {
             WebLog webLogAnnotation = method.getAnnotation(WebLog.class);
             webLog.setDescription(webLogAnnotation.description());
         }
-        long endTime = System.currentTimeMillis();
         String urlStr = request.getRequestURL().toString();
         webLog.setMethod(request.getMethod());
         webLog.setParams(getParameter(method, joinPoint.getArgs()));
