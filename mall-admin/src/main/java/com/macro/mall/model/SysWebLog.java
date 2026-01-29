@@ -6,7 +6,6 @@ import java.util.Date;
 
 /**
  * 后台操作日志实体类
- * Created by macro on 2024/01/19.
  */
 @Data
 public class SysWebLog {
